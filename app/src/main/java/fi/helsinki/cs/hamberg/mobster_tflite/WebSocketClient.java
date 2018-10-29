@@ -1,7 +1,15 @@
 package fi.helsinki.cs.hamberg.mobster_tflite;
 
+// Copyright (c) 2009-2012 James Coglan
+// Copyright (c) 2012 Eric Butler
+// Copyright (c) 2012 Koushik Dutta
+//
+// Modified to add Android wakelock support by Jonatan Hamberg <jonatan.hamberg@helsinki.fi>
+
+import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.PowerManager;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
@@ -37,6 +45,8 @@ public class WebSocketClient {
     private Handler                  mHandler;
     private List<BasicNameValuePair> mExtraHeaders;
     private HybiParser               mParser;
+    private PowerManager.WakeLock    mWakeLock;
+    private boolean                  mConnected;
 
     private final Object mSendLock = new Object();
 
@@ -46,19 +56,38 @@ public class WebSocketClient {
         sTrustManagers = tm;
     }
 
-    public WebSocketClient(URI uri, Listener listener, List<BasicNameValuePair> extraHeaders) {
+    public WebSocketClient(URI uri, Listener listener, List<BasicNameValuePair> extraHeaders, PowerManager.WakeLock wakeLock) {
         mURI          = uri;
         mListener = listener;
         mExtraHeaders = extraHeaders;
-        mParser       = new HybiParser(this);
+        mParser       = new HybiParser(this, wakeLock);
 
         mHandlerThread = new HandlerThread("websocket-thread");
         mHandlerThread.start();
         mHandler = new Handler(mHandlerThread.getLooper());
+        mWakeLock = wakeLock;
+        mConnected = false;
     }
 
     public Listener getListener() {
         return mListener;
+    }
+
+    public boolean isConnected() {
+        return mConnected;
+    }
+
+    private synchronized void releaseWakeLock() {
+        if(mWakeLock != null && mWakeLock.isHeld()) {
+            mWakeLock.release();
+        }
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private synchronized void acquireWakeLock() {
+        if (mWakeLock != null && !mWakeLock.isHeld()) {
+            mWakeLock.acquire();
+        }
     }
 
     public void connect() {
@@ -70,6 +99,7 @@ public class WebSocketClient {
             @Override
             public void run() {
                 try {
+                    acquireWakeLock();
                     String secret = createSecret();
 
                     int port = (mURI.getPort() != -1) ? mURI.getPort() : (mURI.getScheme().equals("wss") ? 443 : 80);
@@ -134,6 +164,8 @@ public class WebSocketClient {
                     }
 
                     mListener.onConnect();
+                    mConnected = true;
+                    releaseWakeLock();
 
                     // Now decode websocket frames.
                     mParser.start(stream);
@@ -141,14 +173,22 @@ public class WebSocketClient {
                 } catch (EOFException ex) {
                     Log.d(TAG, "WebSocket EOF!", ex);
                     mListener.onDisconnect(0, "EOF");
-
+                    mConnected = false;
                 } catch (SSLException ex) {
                     // Connection reset by peer
                     Log.d(TAG, "Websocket SSL error!", ex);
                     mListener.onDisconnect(0, "SSL");
-
+                    mConnected = false;
                 } catch (Exception ex) {
                     mListener.onError(ex);
+                    mConnected = false;
+                } finally {
+                    // Release all locks
+                    if(mWakeLock != null && mWakeLock.isHeld()){
+                        mWakeLock.setReferenceCounted(false);
+                        mWakeLock.release();
+                        mWakeLock.setReferenceCounted(true);
+                    }
                 }
             }
         });
@@ -163,6 +203,7 @@ public class WebSocketClient {
                     try {
                         mSocket.close();
                         mSocket = null;
+                        mConnected = false;
                     } catch (IOException ex) {
                         Log.d(TAG, "Error while disconnecting", ex);
                         mListener.onError(ex);
@@ -235,6 +276,7 @@ public class WebSocketClient {
             public void run() {
                 try {
                     synchronized (mSendLock) {
+                        acquireWakeLock();
                         if (mSocket == null) {
                             throw new IllegalStateException("Socket not connected");
                         }
@@ -244,6 +286,17 @@ public class WebSocketClient {
                     }
                 } catch (IOException e) {
                     mListener.onError(e);
+                    mConnected = false;
+                    if(mWakeLock != null) {
+                        // This frame will release all locks
+                        mWakeLock.setReferenceCounted(false);
+                    }
+                } finally {
+                    if(mWakeLock != null && mWakeLock.isHeld()) {
+                        mWakeLock.release();
+                        // Make sure reference counting is switched on again
+                        mWakeLock.setReferenceCounted(true);
+                    }
                 }
             }
         });

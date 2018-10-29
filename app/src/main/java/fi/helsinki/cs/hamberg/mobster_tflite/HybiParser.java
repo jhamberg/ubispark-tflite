@@ -8,28 +8,10 @@ package fi.helsinki.cs.hamberg.mobster_tflite;
 // Copyright (c) 2009-2012 James Coglan
 //
 // Ported from Javascript to Java by Eric Butler <eric@codebutler.com>
-//
-// (The MIT License)
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// Modified to add Android wakelock support by Jonatan Hamberg <jonatan.hamberg@helsinki.fi>
 
+import android.annotation.SuppressLint;
+import android.os.PowerManager;
 import android.util.Log;
 
 import java.io.*;
@@ -40,6 +22,7 @@ public class HybiParser {
     private static final String TAG = "HybiParser";
 
     private WebSocketClient mClient;
+    private PowerManager.WakeLock mWakeLock;
 
     private boolean mMasking = true;
 
@@ -91,7 +74,8 @@ public class HybiParser {
             OP_CONTINUATION, OP_TEXT, OP_BINARY
     );
 
-    public HybiParser(WebSocketClient client) {
+    public HybiParser(WebSocketClient client, PowerManager.WakeLock wakeLock) {
+        mWakeLock = wakeLock;
         mClient = client;
     }
 
@@ -128,10 +112,28 @@ public class HybiParser {
                     break;
             }
         }
+        if(mFinal) {
+            releaseWakeLock();
+        }
         mClient.getListener().onDisconnect(0, "EOF");
     }
 
+    private synchronized void releaseWakeLock() {
+        if(mWakeLock != null && mWakeLock.isHeld()) {
+            mWakeLock.release();
+        }
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private synchronized void acquireWakeLock() {
+        if (mWakeLock != null && !mWakeLock.isHeld()) {
+            mWakeLock.acquire();
+        }
+    }
+
     private void parseOpcode(byte data) throws ProtocolError {
+        acquireWakeLock();
+
         boolean rsv1 = (data & RSV1) == RSV1;
         boolean rsv2 = (data & RSV2) == RSV2;
         boolean rsv3 = (data & RSV3) == RSV3;
