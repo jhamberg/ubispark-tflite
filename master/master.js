@@ -14,7 +14,7 @@ const results = new Map();
 
 console.log("==== MOBSTER-TFLITE ===")
 console.log(`Started on port ${port}!`);
-console.log("Press [enter] to start");
+console.log("Type in \"start\" to start");
 console.log("\nWaiting for workers...");
 
 const onResult = uuid => (result) => {
@@ -28,11 +28,11 @@ const onResult = uuid => (result) => {
 
 const onDisconnect = uuid => () => {
     console.log(`Worker ${uuid} disconnected`)
-    console.log(`Total workers: ${countWorkers()}`);
 
     if (workers.has(uuid)) {
         workers.delete(uuid);
     }
+    console.log(`Total workers: ${countWorkers()}`);
 }
 
 const countWorkers = () => {
@@ -40,6 +40,7 @@ const countWorkers = () => {
     for (const [uuid, socket] of workers.entries()) {
         const { readyState, OPEN } = socket;
         if (readyState !== OPEN) {
+            console.log(`Worker ${uuid} state: ${readyState}`);
             onDisconnect(uuid)();
         } else {
             count++;
@@ -51,12 +52,12 @@ const countWorkers = () => {
 server.on("connection", (socket) => {
     const uuid = uuidv4();
     console.log(`Worker ${uuid} connected!`);
-    console.log(`Total workers: ${countWorkers()}`);
 
     socket.on("close", onDisconnect(uuid));
     socket.on("message", onResult(uuid));
 
     workers.set(uuid, socket);
+    console.log(`Total workers: ${countWorkers()}`);
 });
 
 rl.on("line", (message) => {
@@ -66,6 +67,7 @@ rl.on("line", (message) => {
         workers.forEach((socket, uuid) => {
             const { readyState, OPEN } = socket;
             if (readyState === OPEN) {
+                console.log(`Sending ${uuid}`);
                 socket.send(`Hello ${uuid}`);
             } else {
                 onDisconnect(uuid)();
