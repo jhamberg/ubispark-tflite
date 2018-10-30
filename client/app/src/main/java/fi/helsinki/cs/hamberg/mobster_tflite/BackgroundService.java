@@ -7,11 +7,13 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.res.AssetManager;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.net.URI;
@@ -23,7 +25,7 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
     private static final String TAG = BackgroundService.class.getSimpleName();
     private static final String CHANNEL = "mobster";
     private WebSocketClient client;
-    private URI uri = URI.create("ws://localhost:8080");
+    private URI uri = URI.create("ws://192.168.10.57:8080");
 
     @SuppressLint("WakelockTimeout")
     @Override
@@ -68,7 +70,6 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
                 .setContentText(text)
                 .setContentIntent(pendingIntent).build();
 
-        Log.d(TAG, "STARTING");
         startForeground(18351860, notification);
     }
 
@@ -91,9 +92,17 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
         if(powerManager != null) {
             WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
             wakeLock.acquire();
-            Log.d(TAG, "Received " + message);
-            setForegroundNotification("ONLINE | " + message);
-            wakeLock.release();
+            if(!TextUtils.isEmpty(message)) {
+                String[] tokens = message.split("\\|");
+                int taskId = Integer.parseInt(tokens[0]);
+                String url = tokens[1];
+                Log.d(TAG, "Received task " + url);
+                setForegroundNotification("ONLINE | Processing task: " + taskId);
+                AssetManager assetManager = getAssets();
+                Thread thread = new Thread(new RequestRunnable(taskId, url, wakeLock, assetManager, client));
+                thread.start();
+            }
+            // wakeLock.release();
         }
     }
 
