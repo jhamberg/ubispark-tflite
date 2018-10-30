@@ -1,5 +1,8 @@
+
+const http = require("http");
 const { Server } = require("ws");
 const uuidv4 = require("uuid/v4");
+const express = require("express");
 const readline = require("readline");
 
 const rl = readline.createInterface({
@@ -8,22 +11,20 @@ const rl = readline.createInterface({
 });
 
 const port = process.env.PORT || 8080
-const server = new Server({ port });
+const ip = process.env.IP || "localhost";
+
+const app = express();
+const server = http.createServer(app);
+
+const wss = new Server({ server });
 const workers = new Map();
 const results = new Map();
 
-console.log("==== MOBSTER-TFLITE ===")
-console.log(`Started on port ${port}!`);
-console.log("Type in \"start\" to start");
-console.log("\nWaiting for workers...");
-
 const onResult = uuid => (result) => {
-    console.log(`Worker ${uuid} completed a task!`);
-
-    const bucket = results.get(uuid) || [];
-    bucket.push(result);
-
-    results.set(uuid, bucket);
+    const [id, ...probs] = result.split("\|"); 
+    results.set(id, probs);
+    
+    console.log(`Worker ${uuid} completed task ${id}!`);
 }
 
 const onDisconnect = uuid => () => {
@@ -49,7 +50,9 @@ const countWorkers = () => {
     return count;
 }
 
-server.on("connection", (socket) => {
+app.use(express.static("public"));
+
+wss.on("connection", (socket) => {
     const uuid = uuidv4();
     console.log(`Worker ${uuid} connected!`);
 
@@ -64,14 +67,22 @@ rl.on("line", (message) => {
     const command = message.trim().toLowerCase();
 
     if ("start" === command) {
+        console.log("\nSTARTED!")
         workers.forEach((socket, uuid) => {
             const { readyState, OPEN } = socket;
             if (readyState === OPEN) {
-                console.log(`Sending ${uuid}`);
-                socket.send(`Hello ${uuid}`);
+                console.log("Sending...");
+                socket.send(`123|http://${ip}:${port}/image.jpg`);
             } else {
                 onDisconnect(uuid)();
             }
         });
     }
+});
+
+server.listen(port, () => {
+    console.log("==== MOBSTER-TFLITE ===")
+    console.log(`Started on port ${port}!`);
+    console.log("Type in \"start\" to start");
+    console.log("\nWaiting for workers...");
 });

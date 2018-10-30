@@ -16,6 +16,7 @@
   },
   "homepage": "https://github.com/JHamberg/mobster-tflite#readme",
   "dependencies": {
+    "express": "^4.16.4",
     "uuid": "^3.3.2",
     "ws": "^6.1.0"
   }
