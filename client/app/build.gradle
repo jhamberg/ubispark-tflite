@@ -17,6 +17,10 @@ android {
         }
     }
     useLibrary 'org.apache.http.legacy'
+    aaptOptions {
+        noCompress "tflite"
+        noCompress "lite"
+    }
 }
 
 repositories {
