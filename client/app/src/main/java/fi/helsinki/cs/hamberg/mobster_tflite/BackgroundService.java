@@ -25,7 +25,7 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
     private static final String TAG = BackgroundService.class.getSimpleName();
     private static final String CHANNEL = "mobster";
     private WebSocketClient client;
-    private URI uri = URI.create("ws://192.168.10.57:8080");
+    private URI uri = URI.create("ws://localhost:8080");
 
     @SuppressLint("WakelockTimeout")
     @Override
@@ -93,13 +93,10 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
             WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
             wakeLock.acquire();
             if(!TextUtils.isEmpty(message)) {
-                String[] tokens = message.split("\\|");
-                int taskId = Integer.parseInt(tokens[0]);
-                String url = tokens[1];
-                Log.d(TAG, "Received task " + url);
-                setForegroundNotification("ONLINE | Processing task: " + taskId);
+                Log.d(TAG, "Received task " + message);
+                setForegroundNotification("ONLINE | Processing task");
                 AssetManager assetManager = getAssets();
-                Thread thread = new Thread(new RequestRunnable(taskId, url, wakeLock, assetManager, client));
+                Thread thread = new Thread(new RequestRunnable(message, wakeLock, assetManager, client));
                 thread.start();
             }
             // wakeLock.release();

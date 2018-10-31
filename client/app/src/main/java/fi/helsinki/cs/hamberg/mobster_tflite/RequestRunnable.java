@@ -57,8 +57,7 @@ public class RequestRunnable implements Runnable {
             }
     );
 
-    RequestRunnable(int taskId, String url, WakeLock wakeLock, AssetManager assets, WebSocketClient client) {
-        this.taskId = taskId;
+    RequestRunnable(String url, WakeLock wakeLock, AssetManager assets, WebSocketClient client) {
         this.urlString = url;
         this.wakeLock = wakeLock;
         this.assets = assets;
@@ -87,7 +86,7 @@ public class RequestRunnable implements Runnable {
             }
 
             final ArrayList<String> results = new ArrayList<>();
-            results.add(Integer.toString(taskId));
+            results.add(urlString);
             for(int i = 0; i < Math.min(sortedLabels.size(), MAX_RESULTS); i++) {
                 Map.Entry<String, Float> result = sortedLabels.poll();
                 results.add(result.getKey() + ":" + result.getValue());
