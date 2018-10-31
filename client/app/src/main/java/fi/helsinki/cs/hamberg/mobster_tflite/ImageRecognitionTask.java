@@ -1,9 +1,11 @@
 package fi.helsinki.cs.hamberg.mobster_tflite;
 
+import android.annotation.SuppressLint;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.text.TextUtils;
 import android.util.Log;
@@ -30,24 +32,21 @@ import java.util.PriorityQueue;
 /**
  * Created by Jonatan Hamberg on 29.10.2018
  */
-public class RequestRunnable implements Runnable {
-    private static final String TAG = RequestRunnable.class.getSimpleName();
-    private String MODEL_PATH = "mobilenet_quant_v1_224.tflite";
-    private String LABELS_PATH = "labels.txt";
-    private int taskId;
+public class ImageRecognitionTask implements Runnable {
+    private static final String TAG = ImageRecognitionTask.class.getSimpleName();
+    // private static final String MODEL_PATH = "mobilenet_quant_v1_224.tflite";
+    private static final String MODEL_PATH = "mobilenet_v1_0.5_128_quant.tflite";
+    private static final String LABELS_PATH = "labels.txt";
     private String urlString;
     private WakeLock wakeLock;
     private WebSocketClient client;
-
     private AssetManager assets;
-    private List<String> labels;
-    private byte[][] labelProbs = null;
 
     private static final int DIM_BATCH_SIZE = 1;
     private static final int DIM_PIXEL_SIZE = 3;
     private static final int MAX_RESULTS = 3;
 
-    PriorityQueue<Map.Entry<String, Float>> sortedLabels = new PriorityQueue<>(
+    private PriorityQueue<Map.Entry<String, Float>> sortedLabels = new PriorityQueue<>(
             3,
             new Comparator<Map.Entry<String, Float>>() {
                 @Override
@@ -57,32 +56,34 @@ public class RequestRunnable implements Runnable {
             }
     );
 
-    RequestRunnable(String url, WakeLock wakeLock, AssetManager assets, WebSocketClient client) {
+    ImageRecognitionTask(String url, PowerManager powerManager, AssetManager assets, WebSocketClient client) {
         this.urlString = url;
-        this.wakeLock = wakeLock;
+        this.wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
         this.assets = assets;
         this.client = client;
     }
 
+    @SuppressLint("WakelockTimeout")
     @Override
     public void run() {
+        wakeLock.acquire();
         try {
             Interpreter tf = new Interpreter(loadModelFile());
             tf.setUseNNAPI(true);
-            labels = loadLabelList();
+            List<String> labels = loadLabelList();
 
-            URL url = new URL(urlString);
+            URL url = new URL("http://localhostc:8080/" + urlString);
             Bitmap bitmap = BitmapFactory.decodeStream(url.openConnection().getInputStream());
-            bitmap = Bitmap.createScaledBitmap(bitmap, 224, 224, false);
+            // bitmap = Bitmap.createScaledBitmap(bitmap, 224, 224, false);
             Log.d(TAG, "Dimensions " + bitmap.getWidth() + ", " + bitmap.getHeight());
 
-            labelProbs = new byte[1][labels.size()];
+            byte[][] labelProbabilities = new byte[1][labels.size()];
 
             ByteBuffer imgData = convertBitmapToByteBuffer(bitmap);
-            tf.run(imgData, labelProbs);
+            tf.run(imgData, labelProbabilities);
 
             for(int i = 0; i< labels.size(); i++) {
-                sortedLabels.add(new AbstractMap.SimpleEntry<>(labels.get(i), (float) labelProbs[0][i]));
+                sortedLabels.add(new AbstractMap.SimpleEntry<>(labels.get(i), (float) labelProbabilities[0][i]));
             }
 
             final ArrayList<String> results = new ArrayList<>();
