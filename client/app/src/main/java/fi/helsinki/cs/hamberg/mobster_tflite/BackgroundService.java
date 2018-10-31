@@ -7,7 +7,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.content.res.AssetManager;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
@@ -17,6 +16,9 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import java.net.URI;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Jonatan Hamberg on 29.10.2018
@@ -24,7 +26,9 @@ import java.net.URI;
 public class BackgroundService extends Service implements WebSocketClient.Listener {
     private static final String TAG = BackgroundService.class.getSimpleName();
     private static final String CHANNEL = "mobster";
+    private static final int NUM_CORES = Runtime.getRuntime().availableProcessors();
     private WebSocketClient client;
+    private ThreadPoolExecutor executor;
     private URI uri = URI.create("ws://localhost:8080");
 
     @SuppressLint("WakelockTimeout")
@@ -57,6 +61,12 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
                 serviceLock.release();
             }
         }
+        executor = new ThreadPoolExecutor(
+                NUM_CORES * 2,
+                NUM_CORES * 2,
+                5L,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>());
     }
 
     public void setForegroundNotification(String text) {
@@ -87,19 +97,15 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
 
     @SuppressLint("WakelockTimeout")
     @Override
-    public void onMessage(String message) {
+    public void onMessage(String imageUrl) {
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         if(powerManager != null) {
-            WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
-            wakeLock.acquire();
-            if(!TextUtils.isEmpty(message)) {
-                Log.d(TAG, "Received task " + message);
+            // Create a task and submit to executor
+            if(!TextUtils.isEmpty(imageUrl)) {
+                //Log.d(TAG, "Received task " + imageUrl);
+                executor.execute(new ImageRecognitionTask(imageUrl, powerManager, getAssets(), client));
                 setForegroundNotification("ONLINE | Processing task");
-                AssetManager assetManager = getAssets();
-                Thread thread = new Thread(new RequestRunnable(message, wakeLock, assetManager, client));
-                thread.start();
             }
-            // wakeLock.release();
         }
     }
 
