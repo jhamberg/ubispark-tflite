@@ -5,11 +5,12 @@
 3) Generate listfile with `bash generate-listfile`
 4) Run server with:
 ```
-IP=<server ip> node master.js
+node master.js
 ```
 
-5) Start up the Android client(s)
-6) Type "ready" to run the job
+5) Change localhost urls to master ip in client/  
+6) Start up the client(s)
+7) Type "ready" to run the job
 
 ___
 
