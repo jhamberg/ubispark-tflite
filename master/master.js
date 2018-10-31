@@ -14,6 +14,7 @@ const terminal = readline.createInterface({ input: process.stdin });
 
 const ip = process.env.IP || "localhost";
 const results = new Map();
+const workers = new Deque();
 const listfile = fs
     .readFileSync("listfile")
     .toString()
@@ -38,20 +39,24 @@ wss.on("connection", (socket) => {
     socket.on("message", (result) => {
         const [filepath, ...values] = result.split("\|"); 
         results.set(filepath, values);
-        console.log(`Worker ${uuid} completed ${filepath}!`);
+        console.log(`Worker ${uuid} completed ${filepath}: ${values}!`);
+        workers.push(socket);
     });
 });
 
 terminal.on("line", (message) => {
     const command = message.trim().toLowerCase();
     if ("ready" === command) {
-        const workers = new Deque([...wss.clients]);
-        listfile.forEach((filepath) => {
-            let worker;
-            while ((worker = workers.shift()).readyState !== WebSocket.OPEN);
-            worker.send(`http://${ip}:${port}/${filepath}`);
-            workers.push(worker);
-        });
+        workers.clear();
+        workers.push(...wss.clients);
+
+        setInterval(() => {
+            const worker = workers.shift();
+            if (worker && worker.readyState === WebSocket.OPEN) {
+                const filepath = listfile.pop();
+                worker.send(`http://${ip}:${port}/${filepath}`);
+            }
+        }, 0);
     }
 });
 
