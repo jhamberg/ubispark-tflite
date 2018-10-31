@@ -12,7 +12,6 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const terminal = readline.createInterface({ input: process.stdin });
 
-const ip = process.env.IP || "localhost";
 const results = new Map();
 const workers = new Deque();
 const listfile = fs
@@ -26,14 +25,37 @@ app.use(express.static("public"));
 const printTotalWorkers = () => 
     console.log(`Total workers: ${wss.clients.size}`);
 
+const job = () => new Promise((resolve) => {
+    workers.clear(); 
+    workers.push(...wss.clients);
+
+    // Keep shifting workers from the dequeue in a loop
+    setInterval(() => {
+        const worker = workers.shift();
+        if (worker && worker.readyState === WebSocket.OPEN) {
+            const task = listfile.pop();
+            if (task) {
+                worker.send(task);
+                workers.push(worker);
+            } else {
+                clearInterval(job);
+                resolve();
+            }
+        }
+    }, 0)
+});
+
 wss.on("connection", (socket) => {
     const uuid = uuidv4();
     console.log(`Worker ${uuid} connected!`);
-    printTotalWorkers()
+    printTotalWorkers();
+
+    // Allow late join
+    workers.push(socket); 
 
     socket.on("close", () => {
         console.log(`Worker ${uuid} disconnected`);
-        printTotalWorkers()
+        printTotalWorkers();
     });
 
     socket.on("message", (result) => {
@@ -44,21 +66,14 @@ wss.on("connection", (socket) => {
     });
 });
 
-terminal.on("line", (message) => {
+terminal.on("line", async (message) => {
     const command = message.trim().toLowerCase();
     if ("ready" === command) {
-        workers.clear();
-        workers.push(...wss.clients);
-
-        setInterval(() => {
-            const worker = workers.shift();
-            if (worker && worker.readyState === WebSocket.OPEN) {
-                const filepath = listfile.pop();
-                worker.send(`http://${ip}:${port}/${filepath}`);
-            }
-        }, 0);
+        await job();
+        console.log("Done!");
     }
 });
+
 
 server.listen(port, () => {
     console.log(`Loaded listfile with ${listfile.length} entries`);
