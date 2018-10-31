@@ -17,7 +17,10 @@ const workers = new Deque();
 const listfile = fs
     .readFileSync("listfile")
     .toString()
-    .split("\n");
+    .split("\n")
+    .slice(0, 1000);
+
+let start;
 
 // Serve images as static HTTP resources
 app.use(express.static("public"));
@@ -26,14 +29,16 @@ const printTotalWorkers = () =>
     console.log(`Total workers: ${wss.clients.size}`);
 
 const job = () => new Promise((resolve) => {
+    start = Date.now();
     workers.clear(); 
-    workers.push(...wss.clients);
-
+    wss.clients.forEach(x => workers.push(x));
+    const tasks = listfile.slice(0);
+    
     // Keep shifting workers from the dequeue in a loop
     setInterval(() => {
         const worker = workers.shift();
         if (worker && worker.readyState === WebSocket.OPEN) {
-            const task = listfile.pop();
+            const task = tasks.pop();
             if (task) {
                 worker.send(task);
                 workers.push(worker);
@@ -51,7 +56,7 @@ wss.on("connection", (socket) => {
     printTotalWorkers();
 
     // Allow late join
-    workers.push(socket); 
+    workers.unshift(socket); 
 
     socket.on("close", () => {
         console.log(`Worker ${uuid} disconnected`);
@@ -62,7 +67,9 @@ wss.on("connection", (socket) => {
         const [filepath, ...values] = result.split("\|"); 
         results.set(filepath, values);
         console.log(`Worker ${uuid} completed ${filepath}: ${values}!`);
-        workers.push(socket);
+        if (results.size === listfile.length) {
+            console.log(`Done in ${Date.now() - start} ms!`);
+        }
     });
 });
 
@@ -70,7 +77,7 @@ terminal.on("line", async (message) => {
     const command = message.trim().toLowerCase();
     if ("ready" === command) {
         await job();
-        console.log("Done!");
+        console.log("Sent all tasks!");
     }
 });
 
