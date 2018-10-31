@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# This script creates a listfile for the CORe50 dataset
+#
+# Before running, make sure core50_128x128 directory is
+# present within the public directory.
+
+# (C) Jonatan Hamberg <jonatan.hamberg@cs.helsinki.fi>
+
+cd public/ && find core50_128x128 -type f > ../listfile
