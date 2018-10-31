@@ -1,88 +1,63 @@
-
+const fs = require('fs')
 const http = require("http");
-const { Server } = require("ws");
 const uuidv4 = require("uuid/v4");
 const express = require("express");
 const readline = require("readline");
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+const WebSocket = require("ws");
+const Deque = require("denque");
 
 const port = process.env.PORT || 8080
-const ip = process.env.IP || "localhost";
-
 const app = express();
 const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+const terminal = readline.createInterface({ input: process.stdin });
 
-const wss = new Server({ server });
-const workers = new Map();
+const ip = process.env.IP || "localhost";
 const results = new Map();
+const listfile = fs
+    .readFileSync("listfile")
+    .toString()
+    .split("\n");
 
-const onResult = uuid => (result) => {
-    const [id, ...probs] = result.split("\|"); 
-    results.set(id, probs);
-    
-    console.log(`Worker ${uuid} completed task ${id}!`);
-}
-
-const onDisconnect = uuid => () => {
-    console.log(`Worker ${uuid} disconnected`)
-
-    if (workers.has(uuid)) {
-        workers.delete(uuid);
-    }
-    console.log(`Total workers: ${countWorkers()}`);
-}
-
-const countWorkers = () => {
-    let count = 0;
-    for (const [uuid, socket] of workers.entries()) {
-        const { readyState, OPEN } = socket;
-        if (readyState !== OPEN) {
-            console.log(`Worker ${uuid} state: ${readyState}`);
-            onDisconnect(uuid)();
-        } else {
-            count++;
-        }
-    }
-    return count;
-}
-
+// Serve images as static HTTP resources
 app.use(express.static("public"));
+
+const printTotalWorkers = () => 
+    console.log(`Total workers: ${wss.clients.size}`);
 
 wss.on("connection", (socket) => {
     const uuid = uuidv4();
     console.log(`Worker ${uuid} connected!`);
+    printTotalWorkers()
 
-    socket.on("close", onDisconnect(uuid));
-    socket.on("message", onResult(uuid));
+    socket.on("close", () => {
+        console.log(`Worker ${uuid} disconnected`);
+        printTotalWorkers()
+    });
 
-    workers.set(uuid, socket);
-    console.log(`Total workers: ${countWorkers()}`);
+    socket.on("message", (result) => {
+        const [filepath, ...values] = result.split("\|"); 
+        results.set(filepath, values);
+        console.log(`Worker ${uuid} completed ${filepath}!`);
+    });
 });
 
-rl.on("line", (message) => {
+terminal.on("line", (message) => {
     const command = message.trim().toLowerCase();
-
-    if ("start" === command) {
-        console.log("\nSTARTED!")
-        workers.forEach((socket, uuid) => {
-            const { readyState, OPEN } = socket;
-            if (readyState === OPEN) {
-                console.log("Sending...");
-                socket.send(`123|http://${ip}:${port}/image.jpg`);
-            } else {
-                onDisconnect(uuid)();
-            }
+    if ("ready" === command) {
+        const workers = new Deque([...wss.clients]);
+        listfile.forEach((filepath) => {
+            let worker;
+            while ((worker = workers.shift()).readyState !== WebSocket.OPEN);
+            worker.send(`http://${ip}:${port}/${filepath}`);
+            workers.push(worker);
         });
     }
 });
 
 server.listen(port, () => {
-    console.log("==== MOBSTER-TFLITE ===")
-    console.log(`Started on port ${port}!`);
-    console.log("Type in \"start\" to start");
+    console.log(`Loaded listfile with ${listfile.length} entries`);
+    console.log(`Master server started on port ${port}!`);
+    console.log("Type in \"ready\" to start");
     console.log("\nWaiting for workers...");
 });
