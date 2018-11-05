@@ -5,6 +5,7 @@ const express = require("express");
 const readline = require("readline");
 const WebSocket = require("ws");
 const Deque = require("denque");
+const Lazy = require("lazy.js")
 
 const port = process.env.PORT || 8080
 const app = express();
@@ -14,11 +15,17 @@ const terminal = readline.createInterface({ input: process.stdin });
 
 const results = new Map();
 const workers = new Deque();
-const listfile = fs
+const listfile = Lazy
+    .readFile("listfile")
+    .lines()
+    .take(1000)
+    .toArray();
+    
+/* const listfile = fs
     .readFileSync("listfile")
     .toString()
     .split("\n")
-    .slice(0, 1000);
+    .slice(0, 1000); */
 
 let start;
 
@@ -38,6 +45,7 @@ const job = () => new Promise((resolve) => {
     setInterval(() => {
         const worker = workers.shift();
         if (worker && worker.readyState === WebSocket.OPEN) {
+            while()
             const task = tasks.pop();
             if (task) {
                 worker.send(task);
