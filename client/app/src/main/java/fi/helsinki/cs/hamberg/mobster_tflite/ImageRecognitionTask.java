@@ -72,7 +72,7 @@ public class ImageRecognitionTask implements Runnable {
             tf.setUseNNAPI(true);
             List<String> labels = loadLabelList();
 
-            URL url = new URL("http://localhostc:8080/" + urlString);
+            URL url = new URL("http://" + Constants.ENDPOINT_MASTER +  "/" + urlString);
             Bitmap bitmap = BitmapFactory.decodeStream(url.openConnection().getInputStream());
             // bitmap = Bitmap.createScaledBitmap(bitmap, 224, 224, false);
             Log.d(TAG, "Dimensions " + bitmap.getWidth() + ", " + bitmap.getHeight());
@@ -87,6 +87,7 @@ public class ImageRecognitionTask implements Runnable {
             }
 
             final ArrayList<String> results = new ArrayList<>();
+            results.add(Constants.SUBMIT_RESULT);
             results.add(urlString);
             for(int i = 0; i < Math.min(sortedLabels.size(), MAX_RESULTS); i++) {
                 Map.Entry<String, Float> result = sortedLabels.poll();

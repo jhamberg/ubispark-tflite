@@ -26,10 +26,9 @@ import java.util.concurrent.TimeUnit;
 public class BackgroundService extends Service implements WebSocketClient.Listener {
     private static final String TAG = BackgroundService.class.getSimpleName();
     private static final String CHANNEL = "mobster";
-    private static final int NUM_CORES = Runtime.getRuntime().availableProcessors();
     private WebSocketClient client;
     private ThreadPoolExecutor executor;
-    private URI uri = URI.create("ws://localhost:8080");
+    private URI uri = URI.create("ws://" + Constants.ENDPOINT_MASTER);
 
     @SuppressLint("WakelockTimeout")
     @Override
@@ -62,8 +61,8 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
             }
         }
         executor = new ThreadPoolExecutor(
-                NUM_CORES * 2,
-                NUM_CORES * 2,
+                Constants.NUM_THREADS,
+                Constants.NUM_THREADS,
                 5L,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>());
@@ -93,6 +92,11 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
     public void onConnect() {
         Log.d(TAG, "Connected to master!");
         setForegroundNotification("ONLINE | Waiting...");
+        updateTaskBufferSize(Constants.NUM_TASKS);
+    }
+
+    private void updateTaskBufferSize(int taskBufferSize) {
+        client.send(Constants.UPDATE_BUFFER + "|" + taskBufferSize);
     }
 
     @SuppressLint("WakelockTimeout")
