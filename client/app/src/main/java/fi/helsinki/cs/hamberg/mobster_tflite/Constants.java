@@ -1,7 +1,13 @@
 package fi.helsinki.cs.hamberg.mobster_tflite;
 
 /**
- * Created by Jonatan Hamberg on 5.11.2018
+ * Global constants
+ *
+ * Editing these allows you to fine-tune and potentially optimize the performance
+ * of the client. Especially ENDPOINT_MASTER should be of interest, it determines
+ * the URL and port at which the client expects the master to be live.
+ *
+ * (C) 2018 Jonatan Hamberg [jonatan.hamberg@cs.helsinki.fi]
  */
 public class Constants {
     private final static int NUM_CORES = Runtime.getRuntime().availableProcessors();

@@ -21,7 +21,14 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Created by Jonatan Hamberg on 29.10.2018
+ * Background service to manage incoming tasks
+ *
+ * Establish a WebSocket (rfc 6455) connection to the master node, after which
+ * start waiting for tasks. Upon receiving a task, create an image recognition
+ * task and add it to the thread pool queue. Tasks are executed concurrently
+ * according to the number of available cores on the device.
+ *
+ * (C) 2018 Jonatan Hamberg [jonatan.hamberg@cs.helsinki.fi]
  */
 public class BackgroundService extends Service implements WebSocketClient.Listener {
     private static final String TAG = BackgroundService.class.getSimpleName();

@@ -9,6 +9,16 @@ import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
+/**
+ * Self-terminating activity for initializing the background service
+ *
+ * This activity prompts the user to ignore battery optimizations, after
+ * which it starts up the background service and closes. In the future,
+ * this activity might also handle setting the master URL and showing
+ * details of the current task and job.
+ *
+ * (C) 2018 Jonatan Hamberg [jonatan.hamberg@cs.helsinki.fi]
+ */
 public class ControlActivity extends AppCompatActivity {
 
     @SuppressLint("BatteryLife")
@@ -16,7 +26,6 @@ public class ControlActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_control);
-        // moveTaskToBack(true);
     }
 
     @SuppressLint("BatteryLife")

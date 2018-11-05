@@ -30,7 +30,14 @@ import java.util.Map;
 import java.util.PriorityQueue;
 
 /**
- * Created by Jonatan Hamberg on 29.10.2018
+ * Image recognition task using TensorFlow Lite classifier
+ *
+ * This runnable downloads an image from the master node and attempts to
+ * classify it using the provided model. For this, the image first needs
+ * to be converted to bytes. When the inference is complete, the result
+ * is sent to the master over the provided socket.
+ *
+ * (C) 2018 Jonatan Hamberg [jonatan.hamberg@cs.helsinki.fi]
  */
 public class ImageRecognitionTask implements Runnable {
     private static final String TAG = ImageRecognitionTask.class.getSimpleName();
@@ -69,11 +76,12 @@ public class ImageRecognitionTask implements Runnable {
         wakeLock.acquire();
         try {
             Interpreter tf = new Interpreter(loadModelFile());
-            tf.setUseNNAPI(true);
+            tf.setUseNNAPI(true); // Use GPU whenever possible
             List<String> labels = loadLabelList();
 
             URL url = new URL("http://" + Constants.ENDPOINT_MASTER +  "/" + urlString);
             Bitmap bitmap = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+            // WARNING! This greatly hinders performance, consider changing model instead
             // bitmap = Bitmap.createScaledBitmap(bitmap, 224, 224, false);
             Log.d(TAG, "Dimensions " + bitmap.getWidth() + ", " + bitmap.getHeight());
 
