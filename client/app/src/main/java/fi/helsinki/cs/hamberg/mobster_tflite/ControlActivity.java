@@ -23,23 +23,23 @@ public class ControlActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-            if(powerManager != null && !powerManager.isIgnoringBatteryOptimizations(getPackageName())) {
-                Intent intent = new Intent();
-                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                intent.setData(Uri.parse("package:" + getPackageName()));
-                startActivity(intent);
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && powerManager != null
+                && !powerManager.isIgnoringBatteryOptimizations(getPackageName())) {
+            Intent intent = new Intent();
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+        } else {
+            Intent serviceIntent = new Intent(this, BackgroundService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
             } else {
-                Intent serviceIntent = new Intent(this, BackgroundService.class);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent);
-                } else {
-                    moveTaskToBack(true);
-                    startService(serviceIntent);
-                }
-                finish();
+                moveTaskToBack(true);
+                startService(serviceIntent);
             }
+            finish();
         }
     }
 }
