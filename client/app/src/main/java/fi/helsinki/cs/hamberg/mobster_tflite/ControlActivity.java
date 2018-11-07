@@ -18,6 +18,7 @@ import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
 
 import fi.helsinki.cs.hamberg.mobster_tflite.databinding.ActivityControlBinding;
 
@@ -98,10 +99,15 @@ public class ControlActivity extends AppCompatActivity {
     }
 
     private void startBackgroundService() {
+        String masterURL = binding.urlInput.getText().toString();
+        if(masterURL.trim().length() == 0) {
+            Toast.makeText(this, "Please provide the master address!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        serviceIntent.putExtra(Constants.MASTER_ENDPOINT, masterURL);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent);
         } else {
-            moveTaskToBack(true);
             startService(serviceIntent);
         }
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);

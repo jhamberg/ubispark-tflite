@@ -85,7 +85,7 @@ public class ImageRecognitionTask implements Runnable {
             tf.setUseNNAPI(true); // Use GPU whenever possible
             List<String> labels = loadLabelList();
 
-            URL url = new URL("http://" + Constants.ENDPOINT_MASTER +  "/" + urlString);
+            URL url = new URL(urlString);
             Bitmap bitmap = BitmapFactory.decodeStream(url.openConnection().getInputStream());
             // WARNING! This greatly hinders performance, consider changing model instead
             // bitmap = Bitmap.createScaledBitmap(bitmap, 224, 224, false);

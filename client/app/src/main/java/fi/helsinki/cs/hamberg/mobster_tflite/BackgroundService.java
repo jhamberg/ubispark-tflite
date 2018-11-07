@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Messenger;
@@ -36,10 +37,10 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
     private static final String TAG = BackgroundService.class.getSimpleName();
     private static final String CHANNEL = "mobster";
     private final Binder binder = new Binder();
+    private String masterURL;
     private Messenger messenger;
     private WebSocketClient client;
     private ThreadPoolExecutor executor;
-    private URI uri = URI.create("ws://" + Constants.ENDPOINT_MASTER);
     private boolean shutdown;
 
     public class Binder extends android.os.Binder {
@@ -50,9 +51,16 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
 
     @SuppressLint("WakelockTimeout")
     @Override
-    public void onCreate() {
-        super.onCreate();
+    public int onStartCommand(Intent intent, int flags, int startId) {
         shutdown = false;
+
+        Bundle extras = intent.getExtras();
+        if (extras != null) {
+            masterURL = extras.getString(Constants.MASTER_ENDPOINT);
+        } else {
+            Log.e(TAG, "You need to provide an URL for the master server!");
+            stopSelf();
+        }
 
         Log.d(TAG, "Starting service...");
         setForegroundNotification("OFFLINE | Initializing...");
@@ -70,6 +78,8 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
             serviceLock.acquire();
             if (client == null) {
                 WakeLock networkLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:networking");
+                URI uri = URI.create("ws://" + masterURL);
+
                 client = new WebSocketClient(uri, this, null, networkLock);
                 setForegroundNotification("OFFLINE | Connecting...");
                 if (!client.isConnected()) {
@@ -86,6 +96,23 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
                 5L,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>());
+        return START_STICKY;
+    }
+
+    @SuppressLint("WakelockTimeout")
+    @Override
+    public void onCreate() {
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        if (powerManager != null) {
+            WakeLock serviceLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
+            serviceLock.acquire();
+            if(client != null && !client.isConnected()) {
+                client.connect();
+            }
+            if (serviceLock.isHeld()) {
+                serviceLock.release();
+            }
+        }
     }
 
     public void setForegroundNotification(String text) {
@@ -158,7 +185,8 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
             // Create a task and submit to executor
             if(!TextUtils.isEmpty(imageUrl)) {
                 //Log.d(TAG, "Received task " + imageUrl);
-                executor.execute(new ImageRecognitionTask(imageUrl, powerManager, getAssets(), client, messenger));
+                String url = "http://" + masterURL + "/" + imageUrl;
+                executor.execute(new ImageRecognitionTask(url, powerManager, getAssets(), client, messenger));
                 setForegroundNotification("ONLINE | Processing task");
             }
         }
@@ -186,7 +214,9 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
 
     private void reconnect() {
         if (!shutdown) {
-            startService(new Intent(this, BackgroundService.class));
+            Intent serviceIntent = new Intent(this, BackgroundService.class);
+            serviceIntent.putExtra(Constants.MASTER_ENDPOINT, masterURL);
+            startService(serviceIntent);
         }
     }
 }
