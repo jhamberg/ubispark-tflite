@@ -15,6 +15,8 @@ public class Constants {
     public final static String ENDPOINT_MASTER = "localhost:8080";
     public final static String UPDATE_BUFFER = "UPDATE_BUFFER";
     public final static String SUBMIT_RESULT = "SUBMIT_RESULT";
+    public final static String SHOW_IMAGE = "SHOW_IMAGE";
+    public final static String SHOW_RESULT = "SHOW_RESULT";
     public final static int NUM_TASKS = NUM_CORES * 12;
     public final static int NUM_THREADS = NUM_CORES * 2;
 }

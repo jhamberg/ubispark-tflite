@@ -7,7 +7,9 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.support.annotation.Nullable;
@@ -33,14 +35,25 @@ import java.util.concurrent.TimeUnit;
 public class BackgroundService extends Service implements WebSocketClient.Listener {
     private static final String TAG = BackgroundService.class.getSimpleName();
     private static final String CHANNEL = "mobster";
+    private final Binder binder = new Binder();
+    private Messenger messenger;
     private WebSocketClient client;
     private ThreadPoolExecutor executor;
     private URI uri = URI.create("ws://" + Constants.ENDPOINT_MASTER);
+    private boolean shutdown;
+
+    public class Binder extends android.os.Binder {
+        BackgroundService getService() {
+            return BackgroundService.this;
+        }
+    }
 
     @SuppressLint("WakelockTimeout")
     @Override
     public void onCreate() {
         super.onCreate();
+        shutdown = false;
+
         Log.d(TAG, "Starting service...");
         setForegroundNotification("OFFLINE | Initializing...");
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -89,10 +102,24 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
         startForeground(18351860, notification);
     }
 
+    public void setMessenger(Messenger messenger) {
+        this.messenger = messenger;
+    }
+
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        Bundle extras = intent.getExtras();
+        if (extras != null) {
+            messenger = (Messenger) extras.get("MESSENGER");
+        }
+        return binder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        messenger = null;
+        return super.onUnbind(intent);
     }
 
     @Override
@@ -106,6 +133,23 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
         client.send(Constants.UPDATE_BUFFER + "|" + taskBufferSize);
     }
 
+    public void shutdown() {
+        Log.d(TAG, "SHUTDOWN");
+        shutdown = true;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+        if (client != null) {
+            client.disconnect();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        shutdown();
+        super.onDestroy();
+    }
+
     @SuppressLint("WakelockTimeout")
     @Override
     public void onMessage(String imageUrl) {
@@ -114,7 +158,7 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
             // Create a task and submit to executor
             if(!TextUtils.isEmpty(imageUrl)) {
                 //Log.d(TAG, "Received task " + imageUrl);
-                executor.execute(new ImageRecognitionTask(imageUrl, powerManager, getAssets(), client));
+                executor.execute(new ImageRecognitionTask(imageUrl, powerManager, getAssets(), client, messenger));
                 setForegroundNotification("ONLINE | Processing task");
             }
         }
@@ -141,6 +185,8 @@ public class BackgroundService extends Service implements WebSocketClient.Listen
 
 
     private void reconnect() {
-        startService(new Intent(this, BackgroundService.class));
+        if (!shutdown) {
+            startService(new Intent(this, BackgroundService.class));
+        }
     }
 }

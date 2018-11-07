@@ -5,8 +5,12 @@ import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Bundle;
+import android.os.Message;
+import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -48,6 +52,7 @@ public class ImageRecognitionTask implements Runnable {
     private WakeLock wakeLock;
     private WebSocketClient client;
     private AssetManager assets;
+    private Messenger messenger;
 
     private static final int DIM_BATCH_SIZE = 1;
     private static final int DIM_PIXEL_SIZE = 3;
@@ -63,11 +68,12 @@ public class ImageRecognitionTask implements Runnable {
             }
     );
 
-    ImageRecognitionTask(String url, PowerManager powerManager, AssetManager assets, WebSocketClient client) {
+    ImageRecognitionTask(String url, PowerManager powerManager, AssetManager assets, WebSocketClient client, Messenger messenger) {
         this.urlString = url;
         this.wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
         this.assets = assets;
         this.client = client;
+        this.messenger = messenger;
     }
 
     @SuppressLint("WakelockTimeout")
@@ -106,12 +112,30 @@ public class ImageRecognitionTask implements Runnable {
             if(client.isConnected()) {
                 client.send(result);
             }
+
+            // Send to activity if bound
+            sendToActivity(bitmap, result);
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
         wakeLock.release();
+    }
+
+    private void sendToActivity(Bitmap image, String result) {
+        if(messenger != null) {
+            Bundle bundle = new Bundle();
+            bundle.putParcelable(Constants.SHOW_IMAGE, image);
+            bundle.putString(Constants.SHOW_RESULT, result);
+            Message message = Message.obtain();
+            message.setData(bundle);
+            try {
+                messenger.send(message);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private ByteBuffer convertBitmapToByteBuffer(Bitmap bitmap) {
