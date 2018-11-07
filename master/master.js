@@ -24,7 +24,6 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
  * 
  * (C) 2018 - Jonatan Hamberg <jonatan.hamberg@cs.helsinki.fi>
  */
-
 (async () => {
     const port = process.env.PORT || 8080
     const app = express();
@@ -41,7 +40,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     // the entire code in an anonymous async function.
     const listfile = await Lazy.readFile("listfile")
         .lines()
-        .take(1000) // Modify this to control job size 
+        .take(100) // Modify this to control job size 
         .toArray();
 
     // Serve data chunks as static HTTP resources
@@ -65,8 +64,10 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
                 break;
             // Submit a task result 
             case SUBMIT_RESULT:
-                console.log(`Worker ${worker.id} completed ${value}: ${rest}!`);
-                results.set(value, rest);
+                if (results.size !== listfile.length) {
+                    console.log(`Worker ${worker.id} completed ${value}: ${rest}!`);
+                    results.set(value, rest);
+                }
                 worker.activeTasks--;
                 break;
         }
@@ -76,13 +77,13 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
         start = Date.now();
         workers.clear(); 
         wss.clients.forEach(x => workers.push(x));
-        const tasks = listfile.slice(0);
+        let tasks = listfile.slice(0);
          
         // In this case, setInterval is better than an infinite while loop
         // because it does not block CPU entirely during execution.
-        setInterval(() => {
+        const loop = setInterval(() => {
             if (results.size === listfile.length) {
-                clearInterval(runJob);
+                clearInterval(loop);
                 resolve();
             }
 
@@ -100,6 +101,11 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
                     if (task) {
                         worker.send(task);
                         worker.activeTasks++;
+                    } else {
+                        // Readd missing tasks
+                        tasks = Lazy(listfile)
+                            .without([...results.keys()])
+                            .toArray()
                     }
                 });
 
@@ -132,6 +138,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
         const command = message.trim().toLowerCase();
         if ("ready" === command) {
             const start = Date.now();
+            results.clear();
             await runJob();
             console.log(`Finished in ${Date.now() - start} ms!`);
         }
