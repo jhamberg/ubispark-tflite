@@ -8,9 +8,8 @@
 node master.js
 ```
 
-5) Change `ENDPOINT_MASTER` in client/app/src/.../Constants.java to your IP
-6) Start up the clients, make sure they show up on master
-7) Type "ready" in master console to run the job
+5) Start up the clients and specify the master IP (without protocol prefix)
+6) Type "ready" in master console to run the job
 
 ___
 
