@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Preprocess an image classification dataset
+#
+# This script executes these preprocessing steps:
+# - Randomize a subset of images
+# - Resize the images as 244x244
+# - Place the resized images in public/img/
+# - Generate a listfile for master.js
+#
+# Usage: ./preprocess <directory> <n>
+# Options
+#    directory   path to dataset
+#    n           size of subset to random
+#
+# (C) 2018 <jonatan.hamberg@cs.helsinki.fi>
+
+if [ "$#" -ne 2 ]; then
+  echo "Randomize a subset of images and create a listfile"
+  echo "Usage: ./$(basename $0) <directory> <n>"
+  echo 
+  echo "Options:"
+  echo "    directory   path to dataset"
+  echo "    n           size of subset to random"
+  echo 
+  echo "For more information: jonatan.hamberg@cs.helsinki.fi"
+  exit 1
+fi
+
+# Remove old directories
+rm -rf listfile public/img
+mkdir -p public/img
+
+# Randomize and resize images
+progress=0
+printf "randomizing $2 images\n"
+find $1 -type f -iname "*.png" -o -iname "*.jpg" -o -iname "*.JPEG" | sort -R | head -n $2 | while read fin; do
+  fout=img/$(basename $fin)
+  convert -resize 244x244! $fin public/$fout
+  echo $fout >> listfile
+  echo -ne "\rconverting $((++i))/$2"
+done
+
+printf "\ndone!\n"
