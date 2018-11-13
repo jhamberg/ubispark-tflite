@@ -15,8 +15,19 @@ object CheckGroundTruth{
     // labels_all.txt: row number -> list of text descriptions
     val labels = Source.fromFile(args(1)).getLines.toSeq.zipWithIndex.map{case (labels, idx) => (idx+1, labels.split(", "))}.toMap
     
-    val results = Source.fromFile(args(2)).getLines.toSeq.map{_.split(" ") match { 
-      case Array(idtext, labeltext) => idtext.toInt -> labeltext
+    //img/ILSVRC2012_val_00001339.JPEG: submarine:4.0,electric locomotive:3.0,lifeboat:2.0!
+    
+    def cleanIdText(idtext: String) = {
+     // ILSVRC2012_val_
+     // 01234567890123456789
+     //println(s"idtext: $idtext")
+     val sub15 = idtext.substring(15)
+     //println(s"sub15: $sub15")
+     sub15.split("\\.")(0)
+    }
+
+    val results = Source.fromFile(args(2)).getLines.toSeq.filter(_.contains("img/ILSVRC2012_val_")).map{_.split("/").last.split(": ") match { 
+      case Array(idtext, labeltext) => cleanIdText(idtext).toInt -> labeltext.split(",")(0).split(":")(0)
       }
     }
 
