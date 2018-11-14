@@ -40,7 +40,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     // the entire code in an anonymous async function.
     const listfile = await Lazy.readFile("listfile")
         .lines()
-        .take(100) // Modify this to control job size 
+        .take(1000) // Modify this to control job size 
         .toArray();
 
     // Serve data chunks as static HTTP resources
@@ -52,6 +52,15 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     // Declarative repeat without memory allocation
     const times = (count, callback) =>
         Lazy.generate(callback, count).each(Lazy.noop);
+
+    // Evaluate promises sequentially creating a list of results
+    const promiseAllSequential = (functions) => (
+        functions.reduce((promise, func) => (
+            promise.then((result) => (
+                 func().then(Array.prototype.concat.bind(result))
+            ))
+        ), Promise.resolve([]))
+    );
 
     // Creates a handler which accepts messages from a worker
     const createMessageHandler = worker => (message) => {
@@ -74,7 +83,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     }
 
     const runJob = () => new Promise((resolve) => {
-        start = Date.now();
+        const start = Date.now();
         workers.clear(); 
         wss.clients.forEach(x => workers.push(x));
         let tasks = listfile.slice(0);
@@ -84,7 +93,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
         const loop = setInterval(() => {
             if (results.size === listfile.length) {
                 clearInterval(loop);
-                resolve();
+                resolve(Date.now() - start);
             }
 
             // Poll a worker from front of the dequeue
@@ -134,13 +143,26 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
 
     });
 
-    terminal.on("line", async (message) => {
-        const command = message.trim().toLowerCase();
-        if ("ready" === command) {
-            const start = Date.now();
-            results.clear();
-            await runJob();
-            console.log(`Finished in ${Date.now() - start} ms!`);
+    terminal.on("line", async (input) => {
+        const [command, ...args] = input.split("\s");
+        switch (command.trim().toLowerCase()){
+            case "ready": {
+                const executionTime = await runJob();
+                console.log(`Finished in ${executionTime} ms!`);
+                break;
+            }
+            case "benchmark": {
+                // Default benchmark runs 10 times
+                const count = Number(args[0]) || 10;
+                const executionTime = await promiseAllSequential([...Array(100)].map(() => count));
+                console.log(`Finished ${count} runs in ${executionTime} ms!`);
+            }
+            case "help":
+                console.log("\nCommands:");
+                console.log("\tready\tstart the distributed inference with the current worker pool");
+                console.log("\tbenchmark <n?>\t repeat the inference n times while measuring execution time\n");
+            default:
+                console.log("Unknown command. Use \"help\" to view commands");
         }
     });
     
