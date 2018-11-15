@@ -5,6 +5,7 @@ const readline = require("readline");
 const WebSocket = require("ws");
 const Deque = require("denque");
 const Lazy = require("lazy.js");
+const math = require("mathjs");
 const promiseAllSequential = require("promise-all-sequential");
 
 const UPDATE_BUFFER = "UPDATE_BUFFER";
@@ -41,8 +42,10 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     // the entire code in an anonymous async function.
     const listfile = await Lazy.readFile("listfile")
         .lines()
-        .take(1000) // Modify this to control job size 
+        // .take(10) // Modify this to control job size 
         .toArray();
+    
+    console.log(listfile[listfile.lenght-1]);
 
     // Serve data chunks as static HTTP resources
     app.use(express.static("public"));
@@ -76,6 +79,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
 
     const runJob = () => new Promise((resolve) => {
         const start = Date.now();
+        results.clear();
         workers.clear(); 
         wss.clients.forEach(x => workers.push(x));
         let tasks = listfile.slice(0);
@@ -136,7 +140,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     });
 
     terminal.on("line", async (input) => {
-        const [command, ...args] = input.split("\s");
+        const [command, ...args] = input.split(" ");
         switch (command.trim().toLowerCase()){
             case "ready": {
                 const executionTime = await runJob();
@@ -145,8 +149,18 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
             }
             case "benchmark": {
                 const count = Number(args[0]) || 10; // Runs 10 times by default
-                const executionTime = await promiseAllSequential([...Array(count)].map(() => runJob));
-                console.log(`Finished ${count} runs in ${executionTime} ms!`);
+                const times = await promiseAllSequential([...Array(count)].map(() => runJob));
+                const rates = times.map(time => listfile.length * 1000 / time);
+                const total = times.reduce((sum, time) => sum + time);
+                const best = Math.max(...rates).toFixed(2);
+                const worst = Math.min(...rates).toFixed(2);
+                const std = math.std(rates);
+                const fps = count * listfile.length * 1000 / total;
+
+                console.log(`\nFinished ${count} runs in ${total} ms!`);
+                console.log(`Times: ${times.join(", ")}`);
+                console.log(`Rates: ${rates.map(x => x.toFixed(2))}`);
+                console.log(`FPS: ${fps}, STD: ${std}, Best: ${best}, Worst: ${worst}`);
                 break;
             }
             case "help":
