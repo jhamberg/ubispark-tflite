@@ -46,7 +46,8 @@ import java.util.PriorityQueue;
 public class ImageRecognitionTask implements Runnable {
     private static final String TAG = ImageRecognitionTask.class.getSimpleName();
     // private static final String MODEL_PATH = "mobilenet_quant_v1_224.tflite";
-    private static final String MODEL_PATH = "mobilenet_v1_0.5_128_quant.tflite";
+    // private static final String MODEL_PATH = "mobilenet_v1_0.5_128_quant.tflite";
+    private static final String MODEL_PATH = "mobilenet_v1_0.25_224_quant.tflite";
     private static final String LABELS_PATH = "labels.txt";
     private String urlString;
     private WakeLock wakeLock;
@@ -96,8 +97,8 @@ public class ImageRecognitionTask implements Runnable {
             ByteBuffer imgData = convertBitmapToByteBuffer(bitmap);
             tf.run(imgData, labelProbabilities);
 
-            for(int i = 0; i< labels.size(); i++) {
-                sortedLabels.add(new AbstractMap.SimpleEntry<>(labels.get(i), (float) labelProbabilities[0][i]));
+            for(int i = 0; i < labels.size(); i++) {
+                sortedLabels.add(new AbstractMap.SimpleEntry<>(i + "#" + labels.get(i), (float) labelProbabilities[0][i]));
             }
 
             final ArrayList<String> results = new ArrayList<>();
@@ -114,7 +115,7 @@ public class ImageRecognitionTask implements Runnable {
             }
 
             // Send to activity if bound
-            sendToActivity(bitmap, result);
+            // sendToActivity(bitmap, result);
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {
