@@ -36,7 +36,7 @@ progress=0
 printf "randomizing $2 images\n"
 find $1 -type f -iname "*.png" -o -iname "*.jpg" -o -iname "*.JPEG" | sort -R | head -n $2 | while read fin; do
   fout=img/$(basename $fin)
-  convert -resize 244x244! $fin public/$fout
+  convert -resize 224x224! $fin public/$fout
   echo $fout >> listfile
   echo -ne "\rconverting $((++i))/$2"
 done
