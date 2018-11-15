@@ -5,6 +5,7 @@ const readline = require("readline");
 const WebSocket = require("ws");
 const Deque = require("denque");
 const Lazy = require("lazy.js");
+const promiseAllSequential = require("promise-all-sequential");
 
 const UPDATE_BUFFER = "UPDATE_BUFFER";
 const SUBMIT_RESULT = "SUBMIT_RESULT";
@@ -52,15 +53,6 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
     // Declarative repeat without memory allocation
     const times = (count, callback) =>
         Lazy.generate(callback, count).each(Lazy.noop);
-
-    // Evaluate promises sequentially creating a list of results
-    const promiseAllSequential = (functions) => (
-        functions.reduce((promise, func) => (
-            promise.then((result) => (
-                 func().then(Array.prototype.concat.bind(result))
-            ))
-        ), Promise.resolve([]))
-    );
 
     // Creates a handler which accepts messages from a worker
     const createMessageHandler = worker => (message) => {
@@ -154,7 +146,7 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
             case "benchmark": {
                 // Default benchmark runs 10 times
                 const count = Number(args[0]) || 10;
-                const executionTime = await promiseAllSequential([...Array(100)].map(() => count));
+                const executionTime = await promiseAllSequential([...Array(count)].map(() => runJob));
                 console.log(`Finished ${count} runs in ${executionTime} ms!`);
             }
             case "help":
