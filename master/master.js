@@ -144,17 +144,20 @@ const SUBMIT_RESULT = "SUBMIT_RESULT";
                 break;
             }
             case "benchmark": {
-                // Default benchmark runs 10 times
-                const count = Number(args[0]) || 10;
+                const count = Number(args[0]) || 10; // Runs 10 times by default
                 const executionTime = await promiseAllSequential([...Array(count)].map(() => runJob));
                 console.log(`Finished ${count} runs in ${executionTime} ms!`);
+                break;
             }
             case "help":
                 console.log("\nCommands:");
-                console.log("\tready\tstart the distributed inference with the current worker pool");
-                console.log("\tbenchmark <n?>\t repeat the inference n times while measuring execution time\n");
+                console.log("  ready\t\tstart the distributed inference with the current worker pool");
+                console.log("  benchmark n\trepeat the inference n times while measuring execution time");
+                console.log("  help\t\tshows all available commands for this program\n")
+                break;
             default:
                 console.log("Unknown command. Use \"help\" to view commands");
+                break;
         }
     });
     
