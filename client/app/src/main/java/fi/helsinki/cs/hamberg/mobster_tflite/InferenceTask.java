@@ -20,32 +20,40 @@ import java.io.InputStreamReader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
 
 /**
- * Created by Jonatan Hamberg on 11/15/18.
+ * Runnable class for deep learning inference
+ *
+ * This runnable acts as the base for other inference tasks, such as image
+ * recognition and audio captioning. It hides details about networking and
+ * message exchange between the service and activity. Please extend this
+ * class as it is not meant to be initialized directly.
+ *
+ * (C) 2018 Jonatan Hamberg [jonatan.hamberg@cs.helsinki.fi]
  */
 public abstract class InferenceTask implements Runnable {
     private static final String TAG = InferenceTask.class.getSimpleName();
     private String modelPath;
-    private String labelPath;
     private PowerManager.WakeLock wakeLock;
     private AssetManager assets;
     private WebSocketClient client;
     private Messenger messenger;
 
-    InferenceTask(String url, String modelPath, String labelPath, PowerManager powerManager,
+    InferenceTask(String modelPath, PowerManager powerManager,
                               AssetManager assets, WebSocketClient client, Messenger messenger) {
         this.wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobster:service");
         this.assets = assets;
         this.client = client;
         this.messenger = messenger;
         this.modelPath = modelPath;
-        this.labelPath = labelPath;
+
     }
 
-
-    public abstract String runClassifier(Interpreter tf, List<String> labels);
+    abstract String runClassifier(Interpreter tf);
 
     @SuppressLint("WakelockTimeout")
     @Override
@@ -54,8 +62,8 @@ public abstract class InferenceTask implements Runnable {
         try {
             Interpreter tf = new Interpreter(loadModelFile());
             tf.setUseNNAPI(true); // Use GPU whenever possible
-            List<String> labels = loadLabelList();
-            String result = runClassifier(tf, labels);
+            String result = runClassifier(tf);
+
             if(client.isConnected()) {
                 client.send(result);
             }
@@ -90,9 +98,9 @@ public abstract class InferenceTask implements Runnable {
         }
     }
 
-    private List<String> loadLabelList() throws IOException {
+    List<String> loadLabelList(String path) throws IOException {
         List<String> labelList = new ArrayList<>();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(assets.open(labelPath)));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(assets.open(path)));
         String line;
         while ((line = reader.readLine()) != null) {
             labelList.add(line);
