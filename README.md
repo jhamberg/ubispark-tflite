@@ -1,15 +1,23 @@
 # mobster-tflite
 
-1) Download the [CORe50 128x128 dataset](https://vlomonaco.github.io/core50/index.html)
-2) Extract in master/public/ (including the core50_128x128 directory)
-3) Generate a listfile with `bash generate-listfile` in master/
-4) Run the master with:
+1) Download an image dataset, like the [CORe50](https://vlomonaco.github.io/core50/index.html) or [ILSVRC](http://image-net.org/challenges/LSVRC/)
+2) Extract the files to a folder
+3) Use the `preprocess` shell script to randomly select N files for classification:
+```bash
+$ preprocess <folder> <N>
+```
+4) Install the dependencies for master node using [npm](https://www.npmjs.com/)
+```bash
+$ cd master && npm install
+```
+5) Run the master node with [Node.js](https://nodejs.org):
 ```
 node master.js
 ```
 
-5) Start up the clients and specify the master IP (without protocol prefix)
-6) Type "ready" in master console to run the job
+6) Build the client in [Android Studio](https://developer.android.com/studio/) 
+7) Install and open the client on worker devices, enter the master `ip:port` and press START
+8) Type "ready" in the master console to start the inference
 
 ___
 
