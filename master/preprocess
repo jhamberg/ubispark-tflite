@@ -4,7 +4,7 @@
 #
 # This script executes these preprocessing steps:
 # - Randomize a subset of images
-# - Resize the images as 244x244
+# - Resize the images as 224x224
 # - Place the resized images in public/img/
 # - Generate a listfile for master.js
 #
