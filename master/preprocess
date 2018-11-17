@@ -41,4 +41,7 @@ find $1 -type f -iname "*.png" -o -iname "*.jpg" -o -iname "*.JPEG" | sort -R | 
   echo -ne "\rconverting $((++i))/$2"
 done
 
+# Remove trailing newline
+head -c -1 listfile > listfile
+
 printf "\ndone!\n"
