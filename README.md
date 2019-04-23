@@ -19,6 +19,13 @@ node master.js
 7) Install and open the client on worker devices, enter the master `ip:port` and press START
 8) Type "ready" in the master console to start the inference
 
+## Standalone version
+
+For comparison, there is a non-distributed (but threaded) Java implementation under /standalone.
+You can build it using IntelliJ IDEA and Maven.
+
+**NOTE:** Using a .pb instead of .tflite requires that colors are formatted in 0-1 range.
+
 ___
 
 (C) 2018 - Jonatan Hamberg &lt;jonatan.hamberg@cs.helsinki.fi&gt;

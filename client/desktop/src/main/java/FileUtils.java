@@ -1,8 +1,5 @@
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -46,14 +43,8 @@ class FileUtils {
         return result;
     }
 
-    static BufferedImage loadImage(String path) throws IOException {
-        return ImageIO.read(FileUtils.class.getResourceAsStream(path));
-    }
-
     static FloatBuffer imageToFloatBuffer(BufferedImage image) {
         FloatBuffer imgData = FloatBuffer.allocate(image.getWidth() * image.getHeight() * CHANNELS);
-
-        // Reference is reused, need to overwrite
         imgData.rewind();
 
         int index = 0;
@@ -65,7 +56,6 @@ class FileUtils {
                 imgData.put(index++, ((val >> 8) & 0xFF) / 255.0f);
                 imgData.put(index++, (val & 0xFF) / 255.0f);
             }
-            System.out.println();
         }
 
         return imgData;
