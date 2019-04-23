@@ -26,6 +26,8 @@ You can build it using IntelliJ IDEA and Maven.
 
 **NOTE:** Using a .pb instead of .tflite requires that colors are formatted in 0-1 range.
 
+**NOTE:** TF handles threading, rolling your own threadpool might end up in deadlock. 
+
 ___
 
 (C) 2018 - Jonatan Hamberg &lt;jonatan.hamberg@cs.helsinki.fi&gt;
