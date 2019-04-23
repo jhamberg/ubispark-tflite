@@ -1,3 +1,5 @@
+package fi.helsinki.cs.hamberg;
+
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.FloatBuffer;
@@ -45,7 +47,6 @@ class FileUtils {
 
     static FloatBuffer imageToFloatBuffer(BufferedImage image) {
         FloatBuffer imgData = FloatBuffer.allocate(image.getWidth() * image.getHeight() * CHANNELS);
-        imgData.rewind();
 
         int index = 0;
         for (int row = 0; row < image.getHeight(); row++) {

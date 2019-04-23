@@ -1,3 +1,5 @@
+package fi.helsinki.cs.hamberg;
+
 import org.tensorflow.Graph;
 import org.tensorflow.Session;
 import org.tensorflow.Tensor;
@@ -9,8 +11,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
 /**
@@ -26,12 +27,15 @@ public class ImageRecognitionTask {
     private static final String LABELS = "models/labels.txt";
     private static final Graph GRAPH = new Graph();
 
+    private static Session session;
     private static PriorityQueue<Map.Entry<String, Float>> result;
     private static List<String> labels;
 
     public static void main(String[] args) throws IOException {
         GRAPH.importGraphDef(FileUtils.loadBytes(MODEL));
 
+        // Session is thread-safe, initializing more than once will cause deadlock
+        session = new Session(GRAPH);
         labels = FileUtils.loadLines(LABELS);
         result = new PriorityQueue<>(labels.size(),
                 Comparator.comparing(AbstractMap.Entry::getValue, Comparator.reverseOrder()));
@@ -50,17 +54,9 @@ public class ImageRecognitionTask {
         if (files == null || files.length == 0) {
             throw new FileNotFoundException("Target folder contains no JPEG files");
         }
-
-        // Submit tasks concurrently using threads
-        ExecutorService service = Executors.newFixedThreadPool(THREADS);
+        
         for (File file : files) {
-            service.submit(() -> {
-                try {
-                    run(file);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
+            run(file);
         }
     }
 
@@ -74,26 +70,27 @@ public class ImageRecognitionTask {
         BufferedImage image = ImageIO.read(file);
         Tensor<Float> tensor = Tensor.create(new long[]{1, image.getWidth(), image.getHeight(), 3},
                 FileUtils.imageToFloatBuffer(image));
-        try (Session session = new Session(GRAPH)){
             // Operation names are specified in the mobilenet_v1_0.5_224_quant_info.txt file
-            Tensor<Float> output = session.runner()
-                    .feed("input", tensor)
-                    .fetch("MobilenetV1/Predictions/Reshape_1")
-                    .run()
-                    .get(0)
-                    .expect(Float.class);
+        Tensor<Float> output = session.runner()
+                .feed("input", tensor)
+                .fetch("MobilenetV1/Predictions/Reshape_1")
+                .run()
+                .get(0)
+                .expect(Float.class);
 
-            // Copy prediction accuracy for each label
-            float[] predictions = output.copyTo(new float[1][labels.size()])[0];
-            for (int i = 1; i < labels.size(); i++) {
-                result.add(new SimpleEntry<>(i + "#" + labels.get(i-1), predictions[i]));
-            }
-
-            // Poll and print the best results
-            for (int i = 0; i < Math.min(predictions.length, MAX_RESULTS); i++) {
-                System.out.println(Thread.currentThread().getName() + ": " + file.getName() +
-                        " -> " + result.poll());
-            }
+        // Copy prediction accuracy for each label
+        float[] predictions = output.copyTo(new float[1][labels.size()])[0];
+        for (int i = 1; i < labels.size(); i++) {
+            result.add(new SimpleEntry<>(i + "#" + labels.get(i-1), predictions[i]));
         }
+
+        // Poll and print the best results
+        for (int i = 0; i < Math.min(predictions.length, MAX_RESULTS); i++) {
+            System.out.println(Thread.currentThread().getName() + ": " + file.getName() +
+                    " -> " + result.poll());
+        }
+
+        output.close();
+        tensor.close();
     }
 }
