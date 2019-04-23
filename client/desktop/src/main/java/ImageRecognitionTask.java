@@ -29,11 +29,11 @@ public class ImageRecognitionTask {
         GRAPH.importGraphDef(FileUtils.loadBytes(MODEL));
         System.out.println(labels);
 
-        run(FileUtils.loadImage("models/ILSVRC2012_val_00004235.JPEG"));
+        run(FileUtils.loadImage("models/ILSVRC2012_val_00031951.JPEG"));
     }
 
     public static void run(BufferedImage image) {
-        Tensor tensor = Tensor.create(new long[]{1, image.getWidth(), image.getHeight(), 3},
+        Tensor<Float> tensor = Tensor.create(new long[]{1, image.getWidth(), image.getHeight(), 3},
                 FileUtils.imageToFloatBuffer(image));
         try (Session session = new Session(GRAPH)){
             // Operation names are specified in the mobilenet_v1_0.5_224_quant_info.txt file
@@ -43,11 +43,9 @@ public class ImageRecognitionTask {
                     .run()
                     .get(0)
                     .expect(Float.class);
-
-            final long[] shape = result.shape();
-            float[] predictions = result.copyTo(new float[1][(int) shape[1]])[0];
-            for (int i = 0; i < labels.size(); i++) {
-                RESULT.add(new AbstractMap.SimpleEntry<>(i + "#" + labels.get(i),
+            float[] predictions = result.copyTo(new float[1][labels.size()])[0];
+            for (int i = 1; i < labels.size(); i++) {
+                RESULT.add(new AbstractMap.SimpleEntry<>(i + "#" + labels.get(i-1),
                         predictions[i]));
             }
 
