@@ -2,6 +2,8 @@
 
 This program was used to execute tasks on clusters of smartphones as part of the publication "Pervasive Data Science on the Edge" published in IEEE Pervasive Computing in 2019 and supported by Academy of Finland (Project number 297741).
 
+Includes task assignment client, task executor for smart devices, and standalone program for comparison with cloud VMs.
+
 Full text (authors' copy) available at: https://researchportal.helsinki.fi/en/publications/pervasive-data-science-on-the-edge 
 
 Official publication: https://ieeexplore.ieee.org/document/8915957
