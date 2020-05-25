@@ -1,4 +1,4 @@
-# Tensorflow Lite - based object detection executor: mobster-tflite
+# Tensorflow Lite - based object detection executor: ubispark-tflite
 
 This program was used to execute tasks on clusters of smartphones as part of the publication "Pervasive Data Science on the Edge" published in IEEE Pervasive Computing in 2019 and supported by Academy of Finland ( Project number 297741 ).
 
