@@ -40,5 +40,5 @@ You can build it using IntelliJ IDEA and Maven.
 
 ___
 
-(C) 2020 - Jonatan Hamberg &lt;jonatan.hamberg@cs.helsinki.fi&gt;
+(C) 2020 - Jonatan Hamberg &lt;jonatan.hamberg@cs.helsinki.fi&gt;    
 (C) 2020 - Eemil Lagerspetz &lt;eemil.lagerspetz@cs.helsinki.fi&gt;
